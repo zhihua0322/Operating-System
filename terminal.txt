@@ -1,0 +1,25 @@
+用反汇编结合C语言和汇编语言
+新的做法是这样的：
+1. 先写好汇编代码和对应的C代码。
+2. 用以下命令编译C代码模块，以便后面反汇编：gcc -m32 -fno-asynchronous-unwind-tables -s -c -o bar.o bar.c
+3. 下载一个好用的反汇编工具objconv，通过如下命令下载：git clone https://github.com/vertis/objconv.git
+4. 下载后进入objconv目录，编译该工具，运行下面的命令：g++ -o objconv -O2 src/*cpp ， -O2中的圆圈是大写字母O.
+5. 用objconv 反汇编C语言生成的目标文件bar.o,命令如下：objconv -fnasm bar.o -o bar.asm,于是目录下便有一个反汇编文件bar.asm
+6. 打开foo.asm, 将里面的_start, 修改成main, 这一步在后面我们编译系统内核时可以不用，现在这么做，主要是想编译成linux可执行文件
+7. 在foo.asm末尾，通过语句：%include “bar.asm” 将第五步反汇编的C模块代码引入foo.asm。
+8. 运行命令编译foo.asm: nasm -f elf32 foo.asm, 执行这一步后，目录上会出现foo.o二进制文件
+9. 执行命令：gcc -m32 foo.o -o foo. 这一步将foo.o与系统模块连接成可执行文件，编译系统内核时，这一步就不需要。
+10. 运行结果：./foo, 就可以看到运行结果了。
+
+
+1： 先使用命令编译mem_util.c
+gcc -m32 -fno-asynchronous-unwind-tables -s -c -o mem_util.o mem_util.c
+
+2: 再使用命令编译原来的C语言模块：
+gcc -m32 -fno-asynchronous-unwind-tables -s -c -o write_vga_desktop.o write_vga_desktop.c
+
+3：把两个编译好的模块链接成一个模块：
+ld -m elf_i386 -r write_vga_desktop.o mem_util.o -o ckernel.o
+
+4：把ckernel.o 反汇编，然后再添加到内核的汇编模块中一起编译：
+./objconv -fnasm ckernel.o ckernel.asm
